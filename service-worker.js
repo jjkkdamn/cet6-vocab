@@ -1,5 +1,5 @@
 // Service Worker for 六级词汇学习卡 PWA
-const CACHE_NAME = 'vocab-v3';
+const CACHE_NAME = 'vocab-v4';
 const CORE_FILES = [
   './index.html',
   './manifest.json',
@@ -8,6 +8,8 @@ const CORE_FILES = [
   './apple-touch-icon.png',
   './turtle.mp4',
   './danzi.mp4',
+  './turtle.mp3',
+  './danzi.mp3',
   './wordlist1.js','./wordlist2.js','./wordlist3.js','./wordlist4.js',
   './wordlist5.js','./wordlist6.js','./wordlist7.js','./wordlist8.js',
   './wordlist9.js','./wordlist10.js','./wordlist11.js','./wordlist12.js',

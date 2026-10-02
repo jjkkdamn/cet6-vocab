@@ -908,7 +908,7 @@ function showToast(msg){
     showToast._tm=setTimeout(()=>t.classList.remove("show"),3000);
 }
 
-// 拼写练习视频反馈：correct=turtle.mp4，wrong=danzi.mp4；淡入停留后淡出，每次重建video保证从头播放
+// 拼写练习视频反馈：correct=turtle.mp4/mp3，wrong=danzi.mp4/mp3；视频静音播画面+独立Audio播声音，只播一遍
 function showSticker(type){
     let el=document.getElementById("stickerOverlay");
     if(!el){
@@ -917,21 +917,24 @@ function showSticker(type){
         el.className="sticker-overlay";
         document.body.appendChild(el);
     }
-    const src = type==="correct"?"turtle.mp4":"danzi.mp4";
-    el.innerHTML='<video src="'+src+'" autoplay loop playsinline preload="auto"></video>';
-    const v = el.querySelector("video");
-    if(v){
-        v.volume = 0.6;
-        v.play().catch(()=>{
-            // 浏览器阻止带声播放时，降级为静音播放
-            v.muted = true;
-            v.play().catch(()=>{});
-        });
-    }
+    const isCorrect = type==="correct";
+    const videoSrc = isCorrect?"turtle.mp4":"danzi.mp4";
+    const audioSrc = isCorrect?"turtle.mp3":"danzi.mp3";
+    // 视频静音自动播放（手机端兼容），只播一遍不循环
+    el.innerHTML='<video src="'+videoSrc+'" autoplay muted playsinline preload="auto"></video>';
     void el.offsetWidth;
     el.classList.add("show");
+    // 独立播放音效（用户手势中触发，手机端可发声）
+    if(showSticker._audio){ try{ showSticker._audio.pause(); }catch(e){} }
+    const audio = new Audio(audioSrc);
+    audio.volume = 0.7;
+    audio.play().catch(()=>{});
+    showSticker._audio = audio;
     clearTimeout(showSticker._t);
-    showSticker._t=setTimeout(()=>el.classList.remove("show"),1500);
+    showSticker._t=setTimeout(()=>{
+        el.classList.remove("show");
+        try{ audio.pause(); }catch(e){}
+    },1500);
 }
 
 // 达成当日目标时鼓励提示（每日各提示一次）
