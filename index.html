@@ -933,7 +933,7 @@ function showSticker(type){
     clearTimeout(showSticker._t);
     showSticker._t=setTimeout(()=>{
         el.classList.remove("show");
-        try{ audio.pause(); }catch(e){}
+        // 淡出时不停止音频，让语音完整播放一遍
     },1500);
 }
 
