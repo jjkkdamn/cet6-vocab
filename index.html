@@ -401,7 +401,54 @@
 // 单词库由 wordlist1.js ~ wordlist16.js 分批定义，已在上方合并为全局 wordList
 // 如需手工追加单词，直接在此处 push 即可：wordList.push({...})
 
-// 语音朗读函数（全兼容版：不使用lookbehind正则，安卓/iOS/国产浏览器通用）
+// ===== 语音朗读模块（优化版：高质量音色选择 + 手机兼容 + 自然节奏）=====
+let _cachedVoice = null;
+let _voicesReady = false;
+// 优先选择的高质量英文神经语音（按优先级排序）
+const PREFERRED_VOICES = [
+    "Google US English",
+    "Microsoft Aria Online", "Microsoft Aria",
+    "Microsoft Zira", "Microsoft Zira Desktop",
+    "Samantha",
+    "Microsoft Jenny Online", "Microsoft Jenny",
+    "Google UK English Female",
+    "Microsoft Libby Online", "Microsoft Libby",
+    "Karen", "Moira", "Tessa", "Fiona",
+    "Google UK English Male"
+];
+function pickBestVoice(){
+    if(_cachedVoice) return _cachedVoice;
+    try{
+        const voices = speechSynthesis.getVoices();
+        if(!voices || voices.length === 0) return null;
+        // 1. 按优先级列表匹配
+        for(const name of PREFERRED_VOICES){
+            const v = voices.find(v => v.name === name || v.name.indexOf(name) === 0);
+            if(v){ _cachedVoice = v; return v; }
+        }
+        // 2. 优先 en-US 女声
+        const enUs = voices.filter(v => v.lang && v.lang.toLowerCase().indexOf("en") === 0);
+        const female = enUs.find(v => /female|woman|girl|aria|zira|samantha|jenny|libby|karen|moira|tessa|fiona/i.test(v.name));
+        if(female){ _cachedVoice = female; return female; }
+        // 3. 任意 en-US
+        if(enUs.length > 0){ _cachedVoice = enUs[0]; return enUs[0]; }
+        // 4. 任意英文
+        const anyEn = voices.find(v => v.lang && v.lang.toLowerCase().indexOf("en") === 0);
+        if(anyEn){ _cachedVoice = anyEn; return anyEn; }
+    }catch(e){}
+    return null;
+}
+// 安卓需要等voiceschanged事件
+if('speechSynthesis' in window){
+    speechSynthesis.onvoiceschanged = function(){
+        _voicesReady = true;
+        _cachedVoice = null;
+        pickBestVoice();
+    };
+    // 立即尝试加载
+    try{ speechSynthesis.getVoices(); }catch(e){}
+}
+
 function speakText(text, opts){
     opts = opts || {};
     const times = opts.times || 1;
@@ -413,13 +460,25 @@ function speakText(text, opts){
     }
     // 停止之前的朗读，避免重叠
     try{ speechSynthesis.cancel(); }catch(e){}
-    // 安卓兼容：预加载语音列表
+    // 确保语音列表已加载
     try{ speechSynthesis.getVoices(); }catch(e){}
+    const voice = pickBestVoice();
+    const rate = isSentence ? 0.9 : 0.95;
+
+    function makeUtter(t){
+        const u = new SpeechSynthesisUtterance(t);
+        u.lang = "en-US";
+        u.rate = rate;
+        u.pitch = 1.0;
+        u.volume = 1.0;
+        if(voice) u.voice = voice;
+        return u;
+    }
+
     let count = 0;
     function speakOnce(){
-        // 例句模式：按标点断句，逐段朗读，模拟六级听力节奏
         if(isSentence){
-            // 兼容写法：先在标点后插入分隔符，再分割（避免lookbehind正则）
+            // 按标点断句：逗号/分号/冒号/句号/问号/感叹号后分割，模拟意群停顿
             const parts = text.replace(/([,;:!?\.])\s+/g, "$1\u0001").split("\u0001").filter(Boolean);
             let idx = 0;
             function speakPart(){
@@ -428,13 +487,11 @@ function speakText(text, opts){
                     if(count < times){ setTimeout(speakOnce, 350); }
                     return;
                 }
-                const u = new SpeechSynthesisUtterance(parts[idx]);
-                u.lang = "en-US";
-                u.rate = 0.88;
-                u.pitch = 1.0;
-                u.volume = 1.0;
-                u.onend = function(){ idx++; setTimeout(speakPart, 180); };
-                u.onerror = function(){ idx++; setTimeout(speakPart, 180); };
+                const u = makeUtter(parts[idx]);
+                // 短句停顿短，长句停顿稍长
+                const pause = parts[idx].length > 40 ? 220 : 150;
+                u.onend = function(){ idx++; setTimeout(speakPart, pause); };
+                u.onerror = function(){ idx++; setTimeout(speakPart, pause); };
                 try{ speechSynthesis.speak(u); }catch(e){}
                 // iOS/安卓兼容：speak后立即resume，防止被系统暂停
                 setTimeout(function(){ try{ if(speechSynthesis.paused) speechSynthesis.resume(); }catch(e){} }, 150);
@@ -442,19 +499,15 @@ function speakText(text, opts){
             speakPart();
             return;
         }
-        // 单词模式：清晰朗读
-        const u = new SpeechSynthesisUtterance(text);
-        u.lang = "en-US";
-        u.rate = 0.82;
-        u.pitch = 1.0;
-        u.volume = 1.0;
+        // 单词模式：清晰朗读2遍
+        const u = makeUtter(text);
         u.onend = function(){
             count++;
-            if(count < times){ setTimeout(speakOnce, 300); }
+            if(count < times){ setTimeout(speakOnce, 320); }
         };
         u.onerror = function(){
             count++;
-            if(count < times){ setTimeout(speakOnce, 300); }
+            if(count < times){ setTimeout(speakOnce, 320); }
         };
         try{ speechSynthesis.speak(u); }catch(e){}
         setTimeout(function(){ try{ if(speechSynthesis.paused) speechSynthesis.resume(); }catch(e){} }, 150);
