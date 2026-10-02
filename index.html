@@ -1424,11 +1424,6 @@ document.getElementById("orderToggle").onclick=()=>{
     setOrderMode(state.orderMode==="shuffle"?"seq":"shuffle");
 };
 applyDarkMode();
-// 阻止浏览器自动弹出PWA安装提示（需安装时用户可通过浏览器菜单手动添加）
-window.addEventListener('beforeinstallprompt', function(e){
-    e.preventDefault();
-    window._deferredInstallPrompt = e;
-});
 // 注册 Service Worker（PWA 离线缓存，仅 http/https 下生效）
 if('serviceWorker' in navigator && location.protocol !== 'file:'){
     navigator.serviceWorker.register('service-worker.js').catch(()=>{});
