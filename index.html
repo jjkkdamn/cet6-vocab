@@ -172,7 +172,7 @@
         /* ===== 拼写练习表情包反馈 ===== */
         .sticker-overlay{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%) scale(.85);z-index:100;pointer-events:none;opacity:0;transition:opacity .3s ease,transform .3s ease;max-width:280px;max-height:50vh;width:42vw;}
         .sticker-overlay.show{opacity:1;transform:translate(-50%,-50%) scale(1);}
-        .sticker-overlay img{width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 10px 28px rgba(0,0,0,.18));}
+        .sticker-overlay img,.sticker-overlay video{width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 10px 28px rgba(0,0,0,.18));border-radius:12px;}
 
         /* ===== 拼写练习模式切换 ===== */
         .spell-modes{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;}
@@ -908,7 +908,7 @@ function showToast(msg){
     showToast._tm=setTimeout(()=>t.classList.remove("show"),3000);
 }
 
-// 拼写练习表情包反馈：correct=turtle.gif，wrong=danzi.gif；淡入停留后淡出，每次重建img保证动图从头播放
+// 拼写练习视频反馈：correct=turtle.mp4，wrong=danzi.mp4；淡入停留后淡出，每次重建video保证从头播放
 function showSticker(type){
     let el=document.getElementById("stickerOverlay");
     if(!el){
@@ -917,7 +917,8 @@ function showSticker(type){
         el.className="sticker-overlay";
         document.body.appendChild(el);
     }
-    el.innerHTML='<img src="'+(type==="correct"?"turtle.gif":"danzi.gif")+'" alt="'+(type==="correct"?"答对了":"答错了")+'">';
+    const src = type==="correct"?"turtle.mp4":"danzi.mp4";
+    el.innerHTML='<video src="'+src+'" autoplay loop muted playsinline preload="auto"></video>';
     void el.offsetWidth;
     el.classList.add("show");
     clearTimeout(showSticker._t);
