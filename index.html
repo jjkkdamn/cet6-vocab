@@ -401,21 +401,26 @@
 // 单词库由 wordlist1.js ~ wordlist16.js 分批定义，已在上方合并为全局 wordList
 // 如需手工追加单词，直接在此处 push 即可：wordList.push({...})
 
-// 语音朗读函数（手机兼容版：安卓/iOS通用，支持单词读2遍、例句听力规范断句）
+// 语音朗读函数（全兼容版：不使用lookbehind正则，安卓/iOS/国产浏览器通用）
 function speakText(text, opts){
     opts = opts || {};
     const times = opts.times || 1;
     const isSentence = !!opts.sentence;
-    if(!text || !('speechSynthesis' in window)) return;
+    if(!text) return;
+    if(!('speechSynthesis' in window)){
+        showToast("当前浏览器不支持语音朗读，请用Chrome或Safari打开");
+        return;
+    }
     // 停止之前的朗读，避免重叠
-    speechSynthesis.cancel();
+    try{ speechSynthesis.cancel(); }catch(e){}
     // 安卓兼容：预加载语音列表
     try{ speechSynthesis.getVoices(); }catch(e){}
     let count = 0;
     function speakOnce(){
         // 例句模式：按标点断句，逐段朗读，模拟六级听力节奏
         if(isSentence){
-            const parts = text.split(/(?<=[,;:!?\.])\s+/).filter(Boolean);
+            // 兼容写法：先在标点后插入分隔符，再分割（避免lookbehind正则）
+            const parts = text.replace(/([,;:!?\.])\s+/g, "$1\u0001").split("\u0001").filter(Boolean);
             let idx = 0;
             function speakPart(){
                 if(idx >= parts.length){
@@ -430,7 +435,7 @@ function speakText(text, opts){
                 u.volume = 1.0;
                 u.onend = function(){ idx++; setTimeout(speakPart, 180); };
                 u.onerror = function(){ idx++; setTimeout(speakPart, 180); };
-                speechSynthesis.speak(u);
+                try{ speechSynthesis.speak(u); }catch(e){}
                 // iOS/安卓兼容：speak后立即resume，防止被系统暂停
                 setTimeout(function(){ try{ if(speechSynthesis.paused) speechSynthesis.resume(); }catch(e){} }, 150);
             }
@@ -451,7 +456,7 @@ function speakText(text, opts){
             count++;
             if(count < times){ setTimeout(speakOnce, 300); }
         };
-        speechSynthesis.speak(u);
+        try{ speechSynthesis.speak(u); }catch(e){}
         setTimeout(function(){ try{ if(speechSynthesis.paused) speechSynthesis.resume(); }catch(e){} }, 150);
     }
     speakOnce();
