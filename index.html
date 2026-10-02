@@ -918,7 +918,16 @@ function showSticker(type){
         document.body.appendChild(el);
     }
     const src = type==="correct"?"turtle.mp4":"danzi.mp4";
-    el.innerHTML='<video src="'+src+'" autoplay loop muted playsinline preload="auto"></video>';
+    el.innerHTML='<video src="'+src+'" autoplay loop playsinline preload="auto"></video>';
+    const v = el.querySelector("video");
+    if(v){
+        v.volume = 0.6;
+        v.play().catch(()=>{
+            // 浏览器阻止带声播放时，降级为静音播放
+            v.muted = true;
+            v.play().catch(()=>{});
+        });
+    }
     void el.offsetWidth;
     el.classList.add("show");
     clearTimeout(showSticker._t);
