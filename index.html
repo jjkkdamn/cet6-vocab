@@ -217,6 +217,27 @@
         body.dark .word-title{color:#81c784;}
         body.dark .phonetic{color:#9db8a3;}
 
+        /* ===== 触屏设备：禁用hover，仅保留按压反馈 ===== */
+        @media (hover: none) and (pointer: coarse) {
+            .btn-primary:hover{background:var(--blue);}
+            .btn-light:hover{background:#eef3f8;}
+            .order-toggle:hover{background:var(--blue);border-color:var(--blue);}
+            .btn-light-danger:hover{background:var(--coral-soft);}
+            .btn-success:hover{background:var(--mint);}
+            .btn-warning:hover{background:var(--orange);}
+            .btn-danger:hover{background:var(--coral);}
+            .btn-audio:hover{background:var(--blue-soft);}
+            .ex-cn:hover{background:#f5f8fb;}
+            .btn-toggle:hover{background:var(--blue-soft);}
+            .spell-mode-btn:hover:not(:disabled){background:#eef3f8;}
+            .tool-btn:hover{background:transparent;color:var(--text-2);}
+            body.dark .btn-light:hover{background:#2a3d30;}
+            body.dark .btn-light-danger:hover{background:#3a2426;}
+            body.dark .btn-audio:hover{background:#243444;}
+            body.dark .tool-btn:hover{background:transparent;}
+            body.dark .spell-mode-btn:hover:not(:disabled){background:#2a3d30;}
+        }
+
         /* ===== PWA 手机原生APP感 ===== */
         body{padding-bottom:100px;}
         #cardListEl{margin-bottom:20px;}
@@ -772,7 +793,7 @@ function showToast(msg){
     showToast._tm=setTimeout(()=>t.classList.remove("show"),3000);
 }
 
-// 拼写练习表情包反馈：correct=turtle.png，wrong=danzi.png；淡入停留后淡出
+// 拼写练习表情包反馈：correct=turtle.gif，wrong=danzi.gif；淡入停留后淡出，每次重建img保证动图从头播放
 function showSticker(type){
     let el=document.getElementById("stickerOverlay");
     if(!el){
@@ -781,7 +802,7 @@ function showSticker(type){
         el.className="sticker-overlay";
         document.body.appendChild(el);
     }
-    el.innerHTML='<img src="'+(type==="correct"?"turtle.png":"danzi.png")+'" alt="'+(type==="correct"?"答对了":"答错了")+'">';
+    el.innerHTML='<img src="'+(type==="correct"?"turtle.gif":"danzi.gif")+'" alt="'+(type==="correct"?"答对了":"答错了")+'">';
     void el.offsetWidth;
     el.classList.add("show");
     clearTimeout(showSticker._t);
