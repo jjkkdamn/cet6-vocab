@@ -401,12 +401,65 @@
 // 单词库由 wordlist1.js ~ wordlist16.js 分批定义，已在上方合并为全局 wordList
 // 如需手工追加单词，直接在此处 push 即可：wordList.push({...})
 
-// 语音朗读函数
-function speakText(text){
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.lang = "en-US";
-    speechSynthesis.speak(utter);
+// 语音朗读函数（手机兼容版：安卓/iOS通用，支持单词读2遍、例句听力规范断句）
+function speakText(text, opts){
+    opts = opts || {};
+    const times = opts.times || 1;
+    const isSentence = !!opts.sentence;
+    if(!text || !('speechSynthesis' in window)) return;
+    // 停止之前的朗读，避免重叠
+    speechSynthesis.cancel();
+    // 安卓兼容：预加载语音列表
+    try{ speechSynthesis.getVoices(); }catch(e){}
+    let count = 0;
+    function speakOnce(){
+        // 例句模式：按标点断句，逐段朗读，模拟六级听力节奏
+        if(isSentence){
+            const parts = text.split(/(?<=[,;:!?\.])\s+/).filter(Boolean);
+            let idx = 0;
+            function speakPart(){
+                if(idx >= parts.length){
+                    count++;
+                    if(count < times){ setTimeout(speakOnce, 350); }
+                    return;
+                }
+                const u = new SpeechSynthesisUtterance(parts[idx]);
+                u.lang = "en-US";
+                u.rate = 0.88;
+                u.pitch = 1.0;
+                u.volume = 1.0;
+                u.onend = function(){ idx++; setTimeout(speakPart, 180); };
+                u.onerror = function(){ idx++; setTimeout(speakPart, 180); };
+                speechSynthesis.speak(u);
+                // iOS/安卓兼容：speak后立即resume，防止被系统暂停
+                setTimeout(function(){ try{ if(speechSynthesis.paused) speechSynthesis.resume(); }catch(e){} }, 150);
+            }
+            speakPart();
+            return;
+        }
+        // 单词模式：清晰朗读
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = "en-US";
+        u.rate = 0.82;
+        u.pitch = 1.0;
+        u.volume = 1.0;
+        u.onend = function(){
+            count++;
+            if(count < times){ setTimeout(speakOnce, 300); }
+        };
+        u.onerror = function(){
+            count++;
+            if(count < times){ setTimeout(speakOnce, 300); }
+        };
+        speechSynthesis.speak(u);
+        setTimeout(function(){ try{ if(speechSynthesis.paused) speechSynthesis.resume(); }catch(e){} }, 150);
+    }
+    speakOnce();
 }
+// 便捷封装：单词朗读2遍
+function speakWord(w){ speakText(w, {times:2}); }
+// 便捷封装：例句朗读（听力规范）
+function speakSentence(s){ speakText(s, {times:1, sentence:true}); }
 
 // 拆分例句中英文：英文以 . 或 。 结尾，后接空白与汉字，其后即为中文部分
 function splitEnCn(s){
@@ -857,7 +910,7 @@ function renderCardMode(){
         <div class="def-item">
             <div class="def-meaning">${d.meaning}</div>
             <div class="example">
-                <button class="btn-audio audio-sm" onclick="speakText('${safeEn}')">🔊</button>
+                <button class="btn-audio audio-sm" onclick="speakSentence('${safeEn}')">🔊</button>
                 <div class="ex-en">${en}</div>
             </div>
             ${cnBlock}
@@ -870,7 +923,7 @@ function renderCardMode(){
         return `
         <span class="tag">
             ${x.word} ${x.phonetic}：${x.desc}
-            <button class="btn-audio audio-sm" onclick="speakText('${safeW}')">🔊</button>
+            <button class="btn-audio audio-sm" onclick="speakWord('${safeW}')">🔊</button>
         </span>
         `;
     }).join("");
@@ -881,7 +934,7 @@ function renderCardMode(){
         return `
         <span class="tag">
             ${x.word} ${x.phonetic}：${x.desc}
-            <button class="btn-audio audio-sm" onclick="speakText('${safeW}')">🔊</button>
+            <button class="btn-audio audio-sm" onclick="speakWord('${safeW}')">🔊</button>
         </span>
         `;
     }).join("");
@@ -891,7 +944,7 @@ function renderCardMode(){
     div.innerHTML=`
         <div class="word-title">
             ${item.word}${hfBadge}${srsInfo}
-            <button class="btn-audio" onclick="speakText('${item.word.replace(/'/g,"\\'")}')">🔊 朗读单词</button>
+            <button class="btn-audio" onclick="speakWord('${item.word.replace(/'/g,"\\'")}')">🔊 朗读单词</button>
         </div>
         <div class="phonetic">${item.phonetic} ${item.pos}</div>
         <button class="btn-toggle" id="btnToggle">查看释义 & 例句<span class="arrow">▼</span></button>
@@ -1012,7 +1065,7 @@ function renderSpellMode(){
         <p style="margin:6px 0 10px;">请输入单词：</p>
         <input type="text" id="spellInput" inputmode="text" autocomplete="off" autocapitalize="none" spellcheck="false" style="padding:8px 12px;width:240px;max-width:100%;min-height:44px;font-size:16px;">
         <button class="btn-primary" id="spellCheck">核对</button>
-        <button class="btn-audio" onclick="speakText('${target.word.replace(/'/g,"\\'")}')">🔊 听单词</button>
+        <button class="btn-audio" onclick="speakWord('${target.word.replace(/'/g,"\\'")}')">🔊 听单词</button>
         <div id="spellResult" style="margin-top:10px;"></div>
         <div class="btn-group" style="margin-top:12px;">
             <button class="btn-primary" id="spellNext">下一题</button>
@@ -1109,7 +1162,7 @@ function renderFillMode(){
                 ${options.map(opt=>`<option value="${opt}">${opt}</option>`).join("")}
             </select>
             <button class="btn-primary" id="fillCheck">提交</button>
-            <button class="btn-audio" onclick="speakText('${sentence.replace(/'/g,"\\'")}')">🔊 朗读句子</button>
+            <button class="btn-audio" onclick="speakSentence('${sentence.replace(/'/g,"\\'")}')">🔊 朗读句子</button>
         </div>
         <div id="fillResult"></div>
         <div class="btn-group" style="margin-top:12px;">
@@ -1157,7 +1210,7 @@ function renderSrsMode(){
     });
     div.innerHTML=`
         <div class="word-title">${item.word}<span class="srs-due">SRS复习</span>
-            <button class="btn-audio" onclick="speakText('${item.word.replace(/'/g,"\\'")}')">🔊 朗读</button></div>
+            <button class="btn-audio" onclick="speakWord('${item.word.replace(/'/g,"\\'")}')">🔊 朗读</button></div>
         <div class="phonetic">${item.phonetic} ${item.pos}</div>
         <div class="block block-defs"><h4>释义 & 例句</h4>${defHtml}</div>
         <div class="btn-group" style="margin-top:16px;">
@@ -1207,7 +1260,7 @@ function renderWrongMode(){
         <p style="margin:6px 0 10px;">请输入单词：</p>
         <input type="text" id="wrongInput" inputmode="text" autocomplete="off" autocapitalize="none" spellcheck="false" style="padding:8px 12px;width:240px;max-width:100%;min-height:44px;font-size:16px;">
         <button class="btn-primary" id="wrongCheck">核对</button>
-        <button class="btn-audio" onclick="speakText('${target.word.replace(/'/g,"\\'")}')">🔊 听单词</button>
+        <button class="btn-audio" onclick="speakWord('${target.word.replace(/'/g,"\\'")}')">🔊 听单词</button>
         <div id="wrongResult" style="margin-top:10px;"></div>
         <div class="btn-group" style="margin-top:12px;">
             <button class="btn-primary" id="wrongNext">下一题</button>
